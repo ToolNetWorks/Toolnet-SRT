@@ -25,7 +25,7 @@
   "scripts": {
     "build": "tsc",
     "prepublishOnly": "npm run build",
-    "dev": "tsx src/cli.ts",
+    "dev": "tsx src/cli/cli.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -42,7 +42,7 @@
   "pi": {
     "extensions": ["./extensions"]
   },
-  "license": "MIT",
+  "license": "GPL-3.0-only",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/xifan2333/jianying-subtitle.git"

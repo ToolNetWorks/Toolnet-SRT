@@ -8,12 +8,16 @@ Works as a **CLI**, a **TypeScript library**, and a **[pi](https://github.com/ea
 - Output: `srt`, `ass`, `json` (with word-level timestamps), `txt`
 - No API key required
 
+## Privacy
+
+Audio is uploaded to ByteDance (CapCut) cloud servers for processing. Do not use for confidential content.
+
 ## CLI
 
 ```bash
 npm install -g jianying-subtitle
 
-jianying-subtitle input.mp4                      # → input.srt
+jianying-subtitle input.mp4                      # → input.json
 jianying-subtitle input.mp3 -o subs/out.srt      # custom output path
 jianying-subtitle input.wav -o out.json          # format inferred from extension
 jianying-subtitle input.mp4 -v                   # verbose progress
@@ -61,4 +65,4 @@ JianYing desktop client uses. See `src/asr/` for details.
 
 ## License
 
-MIT
+GPL-3.0-only

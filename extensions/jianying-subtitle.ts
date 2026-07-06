@@ -45,7 +45,8 @@ export default function (pi: ExtensionAPI) {
       `Audio formats (${[...SUPPORTED_EXTS].join(", ")}) are uploaded directly; ` +
       "video files are converted to audio first (requires ffmpeg/ffprobe on PATH). " +
       "Writes subtitle files next to the input (or to `output`) and returns a transcript preview. " +
-      "Best for Chinese/English speech; typically takes 10s–2min depending on length.",
+      "Best for Chinese/English speech; typically takes 10s–2min depending on length. " +
+      "Note: audio is uploaded to ByteDance cloud servers for processing — do not use for confidential content.",
     promptSnippet:
       "Transcribe audio/video files to subtitles (srt/ass/json/txt) via JianYing free ASR",
     parameters: Type.Object({
