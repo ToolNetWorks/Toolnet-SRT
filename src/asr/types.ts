@@ -1,9 +1,9 @@
-/** A single subtitle segment with timing. */
+/** A single subtitle segment with timing information. */
 export interface SubtitleSegment {
   text: string;
   startMs: number;
   endMs: number;
-  /** Word-level timestamps (when needWordTimestamp is true). */
+  /** Word-level timestamps for advanced consumers and JSON output. */
   words?: SubtitleWord[];
 }
 
@@ -13,48 +13,38 @@ export interface SubtitleWord {
   endMs: number;
 }
 
-/** Raw response from JianYing ASR. */
+/** Raw response body from the JianYing ASR query endpoint. */
 export interface JianYingResponse {
   ret: string;
   errmsg?: string;
-  data: {
+  /** `null` when the task is still processing; `{ utterances: [...] }` when ready. */
+  data?: {
     id: string;
     utterances: Array<{
       text: string;
       start_time: number;
       end_time: number;
-      words: Array<{
+      words?: Array<{
         text: string;
         start_time: number;
         end_time: number;
       }>;
     }>;
-  };
+  } | null;
 }
 
-/** Options for transcribe(). */
+/** Options for {@link transcribe}. */
 export interface TranscribeOptions {
-  /** Path to audio file (mp3/wav/flac/m4a) or video file. */
+  /**
+   * Path to an audio file (mp3 / wav / flac / m4a).
+   * Video files must be converted to audio before calling
+   * {@link transcribe} — the CLI handles this automatically.
+   */
   input: string;
-  /** Use disk cache to avoid re-transcribing same file. */
-  cache?: boolean;
-  /** Return word-level timestamps instead of sentence-level. */
-  wordTimestamps?: boolean;
-  /** Cache directory. Default: ~/.cache/jianying-subtitle */
-  cacheDir?: string;
-  /** Progress callback: (percent, message). */
+  /** Progress callback. `percent` ranges from 0 to 100. */
   onProgress?: (percent: number, message: string) => void;
-  /**
-   * Timeout for polling query results in ms.
-   * Default: 300_000 (5 minutes).
-   */
+  /** Maximum time to wait for the ASR result (default: 5 minutes). */
   queryTimeoutMs?: number;
-  /**
-   * Polling interval for query results in ms.
-   * Default: 2000 (2 seconds).
-   */
+  /** Interval between query polls (default: 2 seconds). */
   queryIntervalMs?: number;
-
-  // For internal use / testing
-  __audioBuffer?: Buffer;
 }

@@ -7,13 +7,24 @@
     "jianying-subtitle": "./bin/jianying-subtitle.mjs"
   },
   "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./dist/index.js",
-    "./asr": "./dist/asr/jianying.js",
-    "./subtitle": "./dist/subtitle/index.js"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./asr": {
+      "types": "./dist/asr/jianying.d.ts",
+      "default": "./dist/asr/jianying.js"
+    },
+    "./subtitle": {
+      "types": "./dist/subtitle/index.d.ts",
+      "default": "./dist/subtitle/index.js"
+    }
   },
   "scripts": {
     "build": "tsc",
+    "prepublishOnly": "npm run build",
     "dev": "tsx src/cli.ts",
     "test": "vitest run",
     "test:watch": "vitest"
@@ -25,13 +36,45 @@
     "subtitle",
     "transcription",
     "speech-to-text",
-    "cli"
+    "cli",
+    "pi-package"
   ],
+  "pi": {
+    "extensions": ["./extensions"]
+  },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xifan2333/jianying-subtitle.git"
+  },
+  "homepage": "https://github.com/xifan2333/jianying-subtitle#readme",
+  "bugs": {
+    "url": "https://github.com/xifan2333/jianying-subtitle/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "typebox": "*"
+  },
+  "peerDependenciesMeta": {
+    "@earendil-works/pi-ai": { "optional": true },
+    "@earendil-works/pi-coding-agent": { "optional": true },
+    "typebox": { "optional": true }
+  },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",
     "vitest": "^3.0.0"
-  }
+  },
+  "files": [
+    "dist",
+    "bin",
+    "extensions",
+    "src",
+    "package.json"
+  ]
 }

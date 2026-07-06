@@ -2,11 +2,13 @@ import { createHmac } from "node:crypto";
 import { sha256 } from "./crypto.js";
 
 /**
- * AWS V4 signature generator.
- * Used to authorize upload to ByteDance VOD (AWS S3-compatible API).
+ * AWS V4 signature for ByteDance VOD upload authorization.
+ *
+ * Used to sign the `ApplyUploadInner` request to ByteDance's
+ * S3-compatible VOD service.
  */
 
-function hmacSha256(key: Buffer | string, msg: string): Buffer {
+function hmacSha256(key: string | Buffer, msg: string): Buffer {
   return createHmac("sha256", key).update(msg).digest();
 }
 
@@ -39,9 +41,7 @@ export interface AwsSignResult {
   headers: Record<string, string>;
 }
 
-/**
- * Generate AWS V4 signature for a request.
- */
+/** Generate an AWS V4 signature and authorization header. */
 export function awsSign(params: AwsSignParams): AwsSignResult {
   const {
     secretKey,
@@ -64,8 +64,6 @@ export function awsSign(params: AwsSignParams): AwsSignResult {
     "x-amz-security-token": sessionToken,
   };
 
-  const canonicalUri = "/";
-  const canonicalQueryString = requestParams;
   const headerKeys = Object.keys(headers);
   const canonicalHeaders =
     headerKeys.map((k) => `${k}:${headers[k]}`).join("\n") + "\n";
@@ -74,8 +72,8 @@ export function awsSign(params: AwsSignParams): AwsSignResult {
 
   const canonicalRequest = [
     method,
-    canonicalUri,
-    canonicalQueryString,
+    "/",
+    requestParams,
     canonicalHeaders,
     signedHeaders,
     payloadHash,
@@ -90,7 +88,12 @@ export function awsSign(params: AwsSignParams): AwsSignResult {
     sha256(canonicalRequest),
   ].join("\n");
 
-  const signingKey = getSignatureKey(secretKey, dateStamp, region, service);
+  const signingKey = getSignatureKey(
+    secretKey,
+    dateStamp,
+    region,
+    service,
+  );
   const signature = createHmac("sha256", signingKey)
     .update(stringToSign)
     .digest("hex");
