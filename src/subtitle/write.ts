@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { SubtitleSegment } from "../asr/types.js";
 import { toSrt } from "./srt.js";
-import { toAss } from "./ass.js";
+import { toAss, type AssStyleOptions } from "./ass.js";
 import { toJson } from "./json.js";
 import { toTxt } from "./txt.js";
 
@@ -21,6 +21,13 @@ export type WriteSubtitleOptions = {
    * extensionless base.
    */
   format?: SubtitleFormat;
+  /**
+   * ASS style overrides.
+   *
+   * Only used when writing `ass` format — ignored for other formats.
+   * Omitted fields fall back to built-in defaults (Arial/14pt white-on-black).
+   */
+  assStyle?: AssStyleOptions;
 };
 
 /**
@@ -56,7 +63,7 @@ export function writeSubtitle(opts: WriteSubtitleOptions): void {
 
   switch (fmt) {
     case "ass":
-      content = toAss(opts.segments);
+      content = toAss(opts.segments, opts.assStyle);
       break;
     case "json":
       content = toJson(opts.segments);
@@ -75,7 +82,11 @@ export function writeSubtitle(opts: WriteSubtitleOptions): void {
 }
 
 /** Additional formats requested alongside the primary output. */
-export type WriteSubtitlesExtras = { also?: SubtitleFormat[] };
+export type WriteSubtitlesExtras = {
+  also?: SubtitleFormat[];
+  /** ASS style overrides (only used when writing `.ass` files). */
+  assStyle?: AssStyleOptions;
+};
 
 /**
  * Write segments to multiple subtitle formats at once.
@@ -114,13 +125,13 @@ export function writeSubtitles(
   // legacy — format inferred from extension
   if (formatOrExtras == null || typeof formatOrExtras === "object") {
     const legacyExtras = formatOrExtras;
-    writeSubtitle({ segments, output });
+    writeSubtitle({ segments, output, assStyle: legacyExtras?.assStyle });
     if (legacyExtras?.also) {
       const base = output.replace(/\.[^.]+$/, "");
       const primaryExt = path.extname(output).slice(1).toLowerCase();
       for (const fmt of legacyExtras.also) {
         if (fmt === primaryExt) continue;
-        writeSubtitle({ segments, output: `${base}.${fmt}`, format: fmt });
+        writeSubtitle({ segments, output: `${base}.${fmt}`, format: fmt, assStyle: legacyExtras.assStyle });
       }
     }
     return;
@@ -132,11 +143,12 @@ export function writeSubtitles(
     segments,
     output: `${output}.${primaryFormat}`,
     format: primaryFormat,
+    assStyle: extras?.assStyle,
   });
   if (extras?.also) {
     for (const fmt of extras.also) {
       if (fmt === primaryFormat) continue;
-      writeSubtitle({ segments, output: `${output}.${fmt}`, format: fmt });
+      writeSubtitle({ segments, output: `${output}.${fmt}`, format: fmt, assStyle: extras.assStyle });
     }
   }
 }

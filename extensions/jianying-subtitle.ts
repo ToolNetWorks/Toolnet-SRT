@@ -23,6 +23,7 @@ import { transcribe } from "../src/asr/jianying.ts";
 import { SUPPORTED_EXTS } from "../src/asr/constants.ts";
 import { writeSubtitles } from "../src/subtitle/write.ts";
 import type { SubtitleFormat } from "../src/subtitle/write.ts";
+import type { AssStyleOptions } from "../src/subtitle/ass.ts";
 import { toTxt } from "../src/subtitle/txt.ts";
 import { videoToAudio, cleanupTempFile } from "../src/utils/media.ts";
 
@@ -64,6 +65,31 @@ export default function (pi: ExtensionAPI) {
         Type.Array(StringEnum(FORMATS), {
           description:
             'Subtitle formats to write (default: ["srt"]). First entry is the primary format.',
+        }),
+      ),
+      assStyle: Type.Optional(
+        Type.Object({
+          fontName: Type.Optional(Type.String({ description: "Font name (default: Arial)" })),
+          fontSize: Type.Optional(Type.Number({ description: "Font size in points (default: 14)" })),
+          primaryColour: Type.Optional(Type.String({ description: "Primary/fill colour in &HAABBGGRR format (default: &H00FFFFFF — white)" })),
+          secondaryColour: Type.Optional(Type.String({ description: "Secondary/karaoke colour (default: &H000000FF)" })),
+          outlineColour: Type.Optional(Type.String({ description: "Outline colour (default: &H00000000)" })),
+          backColour: Type.Optional(Type.String({ description: "Back/shadow colour (default: &H80000000)" })),
+          bold: Type.Optional(Type.Number({ description: "Bold: -1=true, 0=false (default: -1)" })),
+          italic: Type.Optional(Type.Number({ description: "Italic: -1=true, 0=false (default: 0)" })),
+          underline: Type.Optional(Type.Number({ description: "Underline: -1=true, 0=false (default: 0)" })),
+          strikeOut: Type.Optional(Type.Number({ description: "StrikeOut: -1=true, 0=false (default: 0)" })),
+          scaleX: Type.Optional(Type.Number({ description: "Horizontal scale % (default: 100)" })),
+          scaleY: Type.Optional(Type.Number({ description: "Vertical scale % (default: 100)" })),
+          spacing: Type.Optional(Type.Number({ description: "Letter spacing in pixels (default: 0)" })),
+          angle: Type.Optional(Type.Number({ description: "Rotation angle in degrees (default: 0)" })),
+          borderStyle: Type.Optional(Type.Number({ description: "Border style: 1=outline+shadow, 3=opaque box (default: 1)" })),
+          outline: Type.Optional(Type.Number({ description: "Outline width in pixels (default: 2)" })),
+          shadow: Type.Optional(Type.Number({ description: "Shadow depth in pixels (default: 2)" })),
+          alignment: Type.Optional(Type.Number({ description: "Alignment 1-9: 2=bottom-centre (default: 2)" })),
+          marginL: Type.Optional(Type.Number({ description: "Left margin in pixels (default: 20)" })),
+          marginR: Type.Optional(Type.Number({ description: "Right margin in pixels (default: 20)" })),
+          marginV: Type.Optional(Type.Number({ description: "Vertical margin in pixels (default: 20)" })),
         }),
       ),
     }),
@@ -128,7 +154,7 @@ export default function (pi: ExtensionAPI) {
           };
         }
 
-        writeSubtitles(segments, outBase, primary, { also });
+        writeSubtitles(segments, outBase, primary, { also, assStyle: params.assStyle as AssStyleOptions | undefined });
         const files = formats.map((fmt) => `${outBase}.${fmt}`);
 
         const preview = truncateHead(toTxt(segments), {

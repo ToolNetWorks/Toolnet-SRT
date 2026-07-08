@@ -8,6 +8,8 @@ export interface CliOptions {
   verbose: boolean;
   help: boolean;
   version: boolean;
+  /** JSON string with ASS style overrides (only used for `.ass` output). */
+  assStyle?: string;
 }
 
 /**
@@ -38,6 +40,11 @@ export function parseArgs(raw: string[]): CliOptions {
       case "-o":
       case "--output": {
         opts.output = readArgValue(raw, i, arg);
+        i++;
+        break;
+      }
+      case "--ass-style": {
+        opts.assStyle = readArgValue(raw, i, arg);
         i++;
         break;
       }

@@ -6,6 +6,7 @@ import { parseArgs, type CliOptions } from "./args.js";
 import { resolveOutput } from "./output.js";
 import { transcribe } from "../asr/jianying.js";
 import { writeSubtitle } from "../subtitle/index.js";
+import type { AssStyleOptions } from "../subtitle/ass.js";
 import { videoToAudio, cleanupTempFile } from "../utils/media.js";
 
 const require = createRequire(import.meta.url);
@@ -23,6 +24,8 @@ Usage:
 Options:
   -o, --output <path>      Output file path (default: <input>.json)
                            Format is inferred from extension: .srt, .ass, .json, .txt
+  --ass-style <json>       ASS style overrides as JSON (only for .ass output)
+                           Example: '{"fontSize":18,"primaryColour":"&H00FFFF00"}'
   -v, --verbose            Verbose logging
   --version                Show version
   -h, --help               Show this help
@@ -31,6 +34,7 @@ Examples:
   jianying-subtitle audio.mp3           # → audio.json
   jianying-subtitle video.mp4 -o out.srt
   jianying-subtitle video.mp4 -o out.ass
+  jianying-subtitle video.mp4 -o out.ass --ass-style '{"fontSize":18}'
   jianying-subtitle video.mp4 -o out.json
   jianying-subtitle video.mp4 -o out.txt
 
@@ -71,7 +75,17 @@ async function runSingle(opts: CliOptions): Promise<void> {
         : undefined,
     });
 
-    writeSubtitle({ segments, output: outputPath, format });
+    let assStyle: AssStyleOptions | undefined;
+    if (opts.assStyle) {
+      try {
+        assStyle = JSON.parse(opts.assStyle) as AssStyleOptions;
+      } catch {
+        throw new Error(
+          `Invalid --ass-style JSON: ${opts.assStyle}`,
+        );
+      }
+    }
+    writeSubtitle({ segments, output: outputPath, format, assStyle });
     process.stdout.write(`${outputPath}\n`);
   } finally {
     if (tempAudio) cleanupTempFile(tempAudio);
