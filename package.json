@@ -1,6 +1,6 @@
 {
   "name": "jianying-subtitle",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "CLI tool to transcribe audio/video using JianYing (CapCut) free ASR API",
   "type": "module",
   "bin": {
@@ -40,7 +40,9 @@
     "pi-package"
   ],
   "pi": {
-    "extensions": ["./extensions"]
+    "extensions": [
+      "./extensions"
+    ]
   },
   "license": "GPL-3.0-only",
   "repository": {
@@ -60,9 +62,15 @@
     "typebox": "*"
   },
   "peerDependenciesMeta": {
-    "@earendil-works/pi-ai": { "optional": true },
-    "@earendil-works/pi-coding-agent": { "optional": true },
-    "typebox": { "optional": true }
+    "@earendil-works/pi-ai": {
+      "optional": true
+    },
+    "@earendil-works/pi-coding-agent": {
+      "optional": true
+    },
+    "typebox": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
