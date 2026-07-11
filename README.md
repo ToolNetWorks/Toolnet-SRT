@@ -56,13 +56,9 @@ This registers a `transcribe_media` tool the model can call, e.g.:
 > "Transcribe ./talk.mp4 to srt and txt"
 
 The tool extracts video audio if needed (fast lossless stream copy when the
-codec is already supported), streams progress, writes the subtitle files, and
-returns a transcript preview.
-
-For long media, the model can call `transcribe_media` with `background: true`.
-That returns immediately with an in-memory job id; use `transcribe_media_status`
-to poll progress/results or `transcribe_media_cancel` to cancel. Background jobs
-are cancelled on pi session shutdown/reload.
+codec is already supported), streams progress, **waits for ASR to finish**,
+writes the subtitle files, and returns a transcript preview in the same tool
+result (synchronous — no background job / polling).
 
 ## How it works
 

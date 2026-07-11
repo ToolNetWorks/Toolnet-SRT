@@ -1,6 +1,6 @@
 {
   "name": "jianying-subtitle",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "CLI tool to transcribe audio/video using JianYing (CapCut) free ASR API",
   "type": "module",
   "bin": {
