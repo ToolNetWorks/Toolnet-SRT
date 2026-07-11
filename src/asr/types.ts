@@ -43,6 +43,8 @@ export interface TranscribeOptions {
   input: string;
   /** Progress callback. `percent` ranges from 0 to 100. */
   onProgress?: (percent: number, message: string) => void;
+  /** Abort signal for cancelling uploads, polling, and result fetching. */
+  signal?: AbortSignal;
   /** Maximum time to wait for the ASR result (default: 5 minutes). */
   queryTimeoutMs?: number;
   /** Interval between query polls (default: 2 seconds). */

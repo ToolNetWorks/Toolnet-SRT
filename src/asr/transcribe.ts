@@ -100,15 +100,16 @@ export async function pollForResult(
   taskId: string,
   tdid: string,
   checkedFetch: (url: string, init: RequestInit) => Promise<Response>,
-  options: Pick<TranscribeOptions, "queryTimeoutMs" | "queryIntervalMs">,
+  options: Pick<TranscribeOptions, "queryTimeoutMs" | "queryIntervalMs" | "signal">,
 ): Promise<JianYingResponse> {
-  const { queryTimeoutMs = 300_000, queryIntervalMs = 2_000 } = options;
+  const { queryTimeoutMs = 300_000, queryIntervalMs = 2_000, signal } = options;
   const deadline = Date.now() + queryTimeoutMs;
 
   while (Date.now() < deadline) {
+    if (signal?.aborted) throw new Error("Cancelled");
     const resp = await queryTask(taskId, tdid, checkedFetch);
     if (resp.data == null) {
-      await sleep(queryIntervalMs);
+      await sleep(queryIntervalMs, signal);
       continue;
     }
     if (!Array.isArray(resp.data.utterances)) {

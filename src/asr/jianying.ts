@@ -46,7 +46,8 @@ export class JianYingASR {
     url: string,
     init: RequestInit,
   ): Promise<Response> => {
-    const res = await fetch(url, init);
+    if (this.options.signal?.aborted) throw new Error("Cancelled");
+    const res = await fetch(url, { ...init, signal: this.options.signal });
     if (!res.ok) {
       const body = await res.text().catch(() => "<unreadable>");
       throw new Error(`HTTP ${res.status} from ${url}: ${body.slice(0, 300)}`);
@@ -89,6 +90,8 @@ export class JianYingASR {
    */
   async transcribe(): Promise<SubtitleSegment[]> {
     const { onProgress } = this.options;
+
+    if (this.options.signal?.aborted) throw new Error("Cancelled");
 
     this.loadFile();
 

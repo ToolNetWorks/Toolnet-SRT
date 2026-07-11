@@ -4,7 +4,7 @@ Transcribe audio/video to subtitles using the JianYing (CapCut) free ASR API.
 Works as a **CLI**, a **TypeScript library**, and a **[pi](https://github.com/earendil-works/pi-mono) extension**.
 
 - Audio formats: `mp3`, `wav`, `flac`, `m4a` (uploaded directly)
-- Video: any format ffmpeg can read (audio track is extracted automatically; requires `ffmpeg`/`ffprobe` on `PATH`)
+- Video: any format ffmpeg can read (audio track is extracted automatically; supported codecs are stream-copied without re-encoding, otherwise transcoded to WAV; requires `ffmpeg`/`ffprobe` on `PATH`)
 - Output: `srt`, `ass`, `json` (with word-level timestamps), `txt`
 - No API key required
 
@@ -55,8 +55,14 @@ This registers a `transcribe_media` tool the model can call, e.g.:
 
 > "Transcribe ./talk.mp4 to srt and txt"
 
-The tool converts video to audio if needed, streams progress, writes the
-subtitle files, and returns a transcript preview.
+The tool extracts video audio if needed (fast lossless stream copy when the
+codec is already supported), streams progress, writes the subtitle files, and
+returns a transcript preview.
+
+For long media, the model can call `transcribe_media` with `background: true`.
+That returns immediately with an in-memory job id; use `transcribe_media_status`
+to poll progress/results or `transcribe_media_cancel` to cancel. Background jobs
+are cancelled on pi session shutdown/reload.
 
 ## How it works
 

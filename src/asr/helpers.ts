@@ -98,6 +98,20 @@ export function parseJsonResponse<T>(
 /**
  * Promise-based sleep. Used for polling intervals.
  */
-export function sleep(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
+export function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  if (signal?.aborted) return Promise.reject(new Error("Cancelled"));
+
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+
+    const onAbort = () => {
+      clearTimeout(timeout);
+      reject(new Error("Cancelled"));
+    };
+
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
 }
