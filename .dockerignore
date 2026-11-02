@@ -1,0 +1,13 @@
+.git/
+node_modules/
+dist/
+input/
+output/
+*.mp4
+*.wav
+*.mp3
+*.m4a
+*.srt
+*.bak
+.env
+.env.*
