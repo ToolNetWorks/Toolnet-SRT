@@ -20,6 +20,27 @@ ToolNet-SRT is an open-source toolkit for automatically transcribing audio and v
 - FFmpeg and FFprobe
 - Internet connectivity
 
+## Installation from npm
+
+Install the CLI globally:
+
+```bash
+npm install -g toolnet-srt
+toolnet-srt --help
+```
+
+Or install the package in a project to use the SDK:
+
+```bash
+npm install toolnet-srt
+```
+
+You can also run the CLI without a global installation:
+
+```bash
+npx toolnet-srt --help
+```
+
 ## Installation from source
 
 ```bash
@@ -31,27 +52,62 @@ npm run build
 
 ## CLI usage
 
-Current upstream-compatible CLI:
+After installing globally, use the CLI to transcribe audio or video:
 
 ```bash
-node bin/jianying-subtitle.mjs input.mp4 -o output.srt
-node bin/jianying-subtitle.mjs input.mp3 -o output.json
-node bin/jianying-subtitle.mjs input.wav -o output.ass
+toolnet-srt input.mp4 -o output.srt
+toolnet-srt input.mp3 -o output.json
+toolnet-srt input.wav -o output.ass
 ```
 
-The dedicated ToolNet npm package and CLI name will be introduced in a separate release.
+When running from a source checkout, replace `toolnet-srt` with
+`node bin/jianying-subtitle.mjs` after building.
 
 ## TypeScript SDK
 
-After building from source:
+After installing the package:
 
 ```ts
-import { transcribe, toSrt } from "./dist/index.js";
+import { transcribe, toSrt } from "toolnet-srt";
 
 const segments = await transcribe({ input: "audio.mp3" });
 const srt = toSrt(segments);
 console.log(srt);
 ```
+
+## Render HTTP API
+
+The hosted API is available at `https://toolnet-srt.onrender.com`.
+Check its health with:
+
+```bash
+curl -fsS https://toolnet-srt.onrender.com/api/health
+```
+
+Set your API token locally, then send the audio as the raw request body:
+
+```bash
+read -rsp "API token: " TOOLNET_SRT_API_KEY
+echo
+
+curl --fail-with-body --show-error --max-time 420 \
+  -H "X-API-Key: $TOOLNET_SRT_API_KEY" \
+  -H "Content-Type: audio/mpeg" \
+  --data-binary @audio.mp3 \
+  -o subtitle.srt \
+  https://toolnet-srt.onrender.com/v1/transcribe
+
+unset TOOLNET_SRT_API_KEY
+```
+
+Use the matching content type for the input: `video/mp4`, `audio/mpeg`,
+`audio/wav`, `audio/x-wav`, `audio/mp4`, or `audio/flac`. Uploads are
+limited to 40 MiB. The service accepts one transcription at a time and may
+return HTTP 429 while busy. The token is required for transcription, but not
+for the health endpoint. Keep it private.
+
+When hosting the service yourself, set the `TOOLNET_SRT_API_KEY` environment
+variable on the server to the token clients should send in `X-API-Key`.
 
 ## Development
 
@@ -63,8 +119,6 @@ npm test
 
 ## Roadmap
 
-- Dedicated ToolNet npm package
-- CLI named `toolnet-srt`
 - Long-video chunk processing
 - Subtitle merging and timestamp correction
 - Optional subtitle translation
