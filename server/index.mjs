@@ -8,7 +8,20 @@ import { join } from "node:path";
 import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 
-import { transcribe, toSrt } from "../dist/index.js";
+// Load ASR only when a transcription request needs it.
+let asrModulePromise;
+
+function getAsrModule() {
+  if (asrModulePromise) return asrModulePromise;
+
+  asrModulePromise = import("../dist/index.js")
+    .catch(error => {
+      asrModulePromise = undefined;
+      throw error;
+    });
+
+  return asrModulePromise;
+}
 
 const PORT = Number(process.env.PORT || 10000);
 const API_KEY = process.env.TOOLNET_SRT_API_KEY || "";
@@ -187,6 +200,8 @@ async function handleTranscribe(req, res) {
     await saveUpload(req, input);
     await extractAudio(input, audio, controller.signal);
 
+    const { transcribe, toSrt } = await getAsrModule();
+
     const segments = await transcribe({
       input: audio,
       signal: controller.signal,
@@ -237,6 +252,16 @@ const server = createServer((req, res) => {
   const path = new URL(
     req.url || "/", "http://localhost"
   ).pathname;
+
+  if (req.method === "GET" && path === "/api/health") {
+    res.writeHead(200, {
+      "Content-Type": "text/plain; charset=utf-8",
+      "Cache-Control": "no-store",
+    });
+
+    res.end("OK");
+    return;
+  }
 
   if (req.method === "GET" && path === "/health") {
     return json(res, 200, "ToolNet-SRT ready");
