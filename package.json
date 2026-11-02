@@ -1,10 +1,10 @@
 {
-  "name": "jianying-subtitle",
-  "version": "0.2.3",
-  "description": "CLI tool to transcribe audio/video using JianYing (CapCut) free ASR API",
+  "name": "toolnet-srt",
+  "version": "0.1.0",
+  "description": "ToolNet SRT - Audio and video subtitle transcription toolkit",
   "type": "module",
   "bin": {
-    "jianying-subtitle": "bin/jianying-subtitle.mjs"
+    "toolnet-srt": "bin/jianying-subtitle.mjs"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -47,11 +47,11 @@
   "license": "GPL-3.0-only",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/xifan2333/jianying-subtitle.git"
+    "url": "git+https://github.com/ToolNetWorks/Toolnet-SRT.git"
   },
-  "homepage": "https://github.com/xifan2333/jianying-subtitle#readme",
+  "homepage": "https://github.com/ToolNetWorks/Toolnet-SRT",
   "bugs": {
-    "url": "https://github.com/xifan2333/jianying-subtitle/issues"
+    "url": "https://github.com/ToolNetWorks/Toolnet-SRT/issues"
   },
   "engines": {
     "node": ">=18"
