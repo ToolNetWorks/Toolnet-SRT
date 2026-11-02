@@ -1,10 +1,11 @@
 {
   "name": "toolnet-srt",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "ToolNet SRT - Audio and video subtitle transcription toolkit",
   "type": "module",
   "bin": {
-    "toolnet-srt": "bin/jianying-subtitle.mjs"
+    "toolnet-srt": "bin/jianying-subtitle.mjs",
+    "toolnet-srt-mcp": "mcp/stdio.mjs"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -20,7 +21,8 @@
     "./subtitle": {
       "types": "./dist/subtitle/index.d.ts",
       "default": "./dist/subtitle/index.js"
-    }
+    },
+    "./client": "./sdk/client.mjs"
   },
   "scripts": {
     "build": "tsc",
@@ -83,6 +85,8 @@
     "bin",
     "extensions",
     "src",
-    "package.json"
+    "package.json",
+    "sdk",
+    "mcp"
   ]
 }

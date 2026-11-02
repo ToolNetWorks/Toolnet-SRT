@@ -7,6 +7,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
+import { JobManager } from "./jobs.mjs";
+import { createExtendedRoutes } from "./extended-routes.mjs";
 
 // Load ASR only when a transcription request needs it.
 let asrModulePromise;
@@ -38,6 +40,12 @@ const formats = new Map([
 ]);
 
 let busy = false;
+const jobManager = new JobManager({ canRun: () => !busy });
+const extendedRoutes = createExtendedRoutes({
+  manager: jobManager,
+  authenticate,
+  apiKeyPresent: () => Boolean(API_KEY),
+});
 
 function authenticate(value) {
   if (!API_KEY || typeof value !== "string") return false;
@@ -157,7 +165,7 @@ async function handleTranscribe(req, res) {
     return json(res, 401, "Unauthorized");
   }
 
-  if (busy) {
+  if (busy || jobManager.isBusy()) {
     return json(res, 429, "Worker busy");
   }
 
@@ -237,6 +245,7 @@ async function handleTranscribe(req, res) {
 
   } finally {
     busy = false;
+    jobManager.kick();
     res.off("close", onClose);
 
     if (directory) {
@@ -252,6 +261,11 @@ const server = createServer((req, res) => {
   const path = new URL(
     req.url || "/", "http://localhost"
   ).pathname;
+
+  if (extendedRoutes.isExtended(path)) {
+    void extendedRoutes.handle(req, res, path);
+    return;
+  }
 
   if (req.method === "GET" && path === "/api/health") {
     res.writeHead(200, {

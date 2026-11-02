@@ -25,6 +25,8 @@ RUN apt-get update \
 COPY --from=builder /app/dist ./dist
 COPY package.json ./
 COPY server/ ./server/
+COPY mcp/ ./mcp/
+COPY sdk/ ./sdk/
 
 USER node
 

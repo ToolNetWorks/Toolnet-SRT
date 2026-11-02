@@ -3,3 +3,9 @@ dist/
 .cache/
 *.tsbuildinfo
 .pi-subagents/
+README.md.bak
+input/
+output/
+.env
+.env.*
+.toolnet-srt-jobs/
