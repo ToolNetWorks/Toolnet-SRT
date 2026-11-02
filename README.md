@@ -1,70 +1,84 @@
-# jianying-subtitle
+# ToolNet-SRT
 
-Transcribe audio/video to subtitles using the JianYing (CapCut) free ASR API.
-Works as a **CLI**, a **TypeScript library**, and a **[pi](https://github.com/earendil-works/pi-mono) extension**.
+Audio & Video Subtitle Transcription Toolkit
 
-- Audio formats: `mp3`, `wav`, `flac`, `m4a` (uploaded directly)
-- Video: any format ffmpeg can read (audio track is extracted automatically; supported codecs are stream-copied without re-encoding, otherwise transcoded to WAV; requires `ffmpeg`/`ffprobe` on `PATH`)
-- Output: `srt`, `ass`, `json` (with word-level timestamps), `txt`
-- No API key required
+ToolNet-SRT is an open-source toolkit for automatically transcribing audio and video into subtitle files, powered by JianYing (CapCut) speech recognition.
+
+## Features
+
+- Automatic audio and video transcription
+- Chinese speech recognition
+- SRT, ASS, JSON and TXT output
+- Word-level timestamps in JSON
+- TypeScript SDK and command-line interface (CLI)
+- FFmpeg-based audio extraction
+- No API key required for the JianYing ASR engine
+
+## Requirements
+
+- Node.js 18+
+- FFmpeg and FFprobe
+- Internet connectivity
+
+## Installation from source
+
+```bash
+git clone https://github.com/ToolNetWorks/Toolnet-SRT.git
+cd Toolnet-SRT
+npm ci
+npm run build
+```
+
+## CLI usage
+
+Current upstream-compatible CLI:
+
+```bash
+node bin/jianying-subtitle.mjs input.mp4 -o output.srt
+node bin/jianying-subtitle.mjs input.mp3 -o output.json
+node bin/jianying-subtitle.mjs input.wav -o output.ass
+```
+
+The dedicated ToolNet npm package and CLI name will be introduced in a separate release.
+
+## TypeScript SDK
+
+After building from source:
+
+```ts
+import { transcribe, toSrt } from "./dist/index.js";
+
+const segments = await transcribe({ input: "audio.mp3" });
+const srt = toSrt(segments);
+console.log(srt);
+```
+
+## Development
+
+```bash
+npm ci
+npm run build
+npm test
+```
+
+## Roadmap
+
+- Dedicated ToolNet npm package
+- CLI named `toolnet-srt`
+- Long-video chunk processing
+- Subtitle merging and timestamp correction
+- Optional subtitle translation
+- Render deployment
+- External application integration
+
+These roadmap features are not yet guaranteed to be available in the current release.
 
 ## Privacy
 
-Audio is uploaded to ByteDance (CapCut) cloud servers for processing. Do not use for confidential content.
-
-## CLI
-
-```bash
-npm install -g jianying-subtitle
-
-jianying-subtitle input.mp4                      # → input.json
-jianying-subtitle input.mp3 -o subs/out.srt      # custom output path
-jianying-subtitle input.wav -o out.json          # format inferred from extension
-jianying-subtitle input.mp4 -v                   # verbose progress
-```
-
-## Library
-
-```bash
-npm install jianying-subtitle
-```
-
-```ts
-import { transcribe, writeSubtitles, toSrt } from "jianying-subtitle";
-
-const segments = await transcribe({
-  input: "audio.mp3",
-  onProgress: (percent, message) => console.log(percent, message),
-});
-
-console.log(toSrt(segments));
-writeSubtitles(segments, "out", "srt", { also: ["json"] });
-```
-
-Subpath exports: `jianying-subtitle/asr`, `jianying-subtitle/subtitle`.
-
-## pi extension
-
-Install as a [pi package](https://github.com/earendil-works/pi-mono):
-
-```bash
-pi install npm:jianying-subtitle
-```
-
-This registers a `transcribe_media` tool the model can call, e.g.:
-
-> "Transcribe ./talk.mp4 to srt and txt"
-
-The tool extracts video audio if needed (fast lossless stream copy when the
-codec is already supported), streams progress, **waits for ASR to finish**,
-writes the subtitle files, and returns a transcript preview in the same tool
-result (synchronous — no background job / polling).
-
-## How it works
-
-Upload → submit ASR task → poll → parse, against the same endpoints the
-JianYing desktop client uses. See `src/asr/` for details.
+Audio is uploaded to ByteDance/JianYing servers for speech recognition. Do not submit confidential audio or video.
 
 ## License
 
-GPL-3.0-only
+GNU General Public License v3.0 only. See [LICENSE](LICENSE) for the complete license text and [NOTICE.md](NOTICE.md) for attribution.
+
+Copyright (C) 2026 xifan2333. ToolNetWorks retains copyright in its own original contributions.
