@@ -24,9 +24,20 @@ async function readJson(req, maxBytes = 16384) {
   catch { throw new JobError('INVALID_JSON'); }
 }
 
-export function createExtendedRoutes({ manager, authenticate, apiKeyPresent }) {
+export function createExtendedRoutes({ manager, authenticate, apiKeyPresent, durable = false, isShuttingDown = () => false }) {
+  let inFlightCreates = 0;
+  const recentCreates = [];
+  async function createLimited(operation) {
+    if (isShuttingDown()) throw new JobError('SERVER_SHUTTING_DOWN', 503);
+    if (!durable) return operation();
+    const now = Date.now();
+    while (recentCreates.length && recentCreates[0] <= now - 60000) recentCreates.shift();
+    if (inFlightCreates >= 4 || recentCreates.length >= 60) throw new JobError('CREATE_RATE_LIMITED', 429);
+    recentCreates.push(now); inFlightCreates++;
+    try { return await operation(); } finally { inFlightCreates--; }
+  }
   const protocol = createMcpProtocol({
-    createJobFromUrl: url => manager.createRemote(url),
+    createJobFromUrl: (url, options) => createLimited(() => manager.createRemote(url, options)),
     getJob: id => manager.getJob(id),
     getResult: id => manager.getResult(id),
     cancelJob: id => manager.cancelJob(id),
@@ -79,13 +90,13 @@ export function createExtendedRoutes({ manager, authenticate, apiKeyPresent }) {
       }
       if (pathname === '/v1/jobs' && req.method === 'POST') {
         const mime = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
-        send(res, 202, await manager.createUpload(req, mime));
+        send(res, 202, await createLimited(() => manager.createUpload(req, mime)));
         return;
       }
       if (pathname === '/v1/jobs/url' && req.method === 'POST') {
         const data = await readJson(req);
         if (typeof data?.url !== 'string') throw new JobError('SOURCE_URL_REQUIRED');
-        send(res, 202, await manager.createRemote(data.url));
+        send(res, 202, await createLimited(() => manager.createRemote(data.url, { idempotencyKey: req.headers['idempotency-key'] })));
         return;
       }
       const match = pathname.match(/^\/v1\/jobs\/([^/]+)(\/result)?$/);
@@ -112,7 +123,7 @@ export function createExtendedRoutes({ manager, authenticate, apiKeyPresent }) {
     } catch (error) {
       const status = error instanceof JobError ? error.status : 500;
       const code = error instanceof JobError ? error.code : 'INTERNAL_ERROR';
-      if (status >= 500) console.error('[ToolNet-SRT] HTTP error:', code, error?.message);
+      if (status >= 500) console.error('[ToolNet-SRT] HTTP error:', code);
       send(res, status, { error: code });
     }
   }

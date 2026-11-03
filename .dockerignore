@@ -9,5 +9,7 @@ output/
 *.m4a
 *.srt
 *.bak
+*.bak-*
+*.zip
 .env
 .env.*

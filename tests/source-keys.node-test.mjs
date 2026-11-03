@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createR2Storage } from "../server/storage/r2.mjs";
@@ -19,6 +19,16 @@ test("Source keys are scoped to job, attempt and filename", () => {
     `toolnet-srt/jobs/${jobId}/remote/${token}/source.wav`]) {
     assert.throws(() => validateSourceKey(jobId, "source.mp4", value), /INVALID_SOURCE_KEY/);
   }
+});
+
+test('R2 download enforces size even when Content-Length is absent',async()=>{
+  const dir=await mkdtemp(join(tmpdir(),'source-limit-'));const id=randomUUID();
+  try {
+    const storage=createR2Storage({env:{R2_ACCOUNT_ID:'a'.repeat(32),R2_ACCESS_KEY_ID:'test',R2_SECRET_ACCESS_KEY:'test',R2_BUCKET:'test'},
+      client:{async send(){return {Body:Readable.from([Buffer.alloc(20)])};}}});
+    await assert.rejects(storage.downloadFile({jobId:id,filename:'source.mp3',localPath:join(dir,'source'),maxBytes:10}),/R2_SOURCE_TOO_LARGE/);
+    assert.deepEqual(await readdir(dir),[]);
+  } finally {await rm(dir,{recursive:true,force:true});}
 });
 
 test("R2 uploads each remote attempt once and downloads the selected key", async () => {

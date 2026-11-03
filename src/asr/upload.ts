@@ -82,7 +82,7 @@ export async function uploadSign(
 
   if (json.ret !== "0") {
     throw new Error(
-      `Upload sign failed (ret=${json.ret}): ${JSON.stringify(json).slice(0, 500)}`,
+      "Upload sign failed",
     );
   }
   return {
@@ -138,13 +138,13 @@ export async function uploadAuth(
     json = JSON.parse(text) as UploadAuthResponse;
   } catch {
     throw new Error(
-      `Upload auth returned non-JSON (HTTP ${res.status}): ${text.slice(0, 500)}`,
+      `Upload auth returned non-JSON (HTTP ${res.status})`,
     );
   }
 
   if (!json.Result?.UploadAddress) {
     throw new Error(
-      `Upload auth failed (HTTP ${res.status}): ${JSON.stringify(json).slice(0, 500)}`,
+      `Upload auth failed (HTTP ${res.status})`,
     );
   }
 
@@ -179,7 +179,7 @@ export async function uploadFile(
   });
   const json = (await res.json()) as { success: number };
   if (json.success !== 0) {
-    throw new Error(`File upload failed: ${JSON.stringify(json)}`);
+    throw new Error("File upload failed");
   }
 }
 
@@ -237,7 +237,8 @@ export async function uploadCommit(
       body: new Uint8Array(ctx.fileBuffer),
       headers,
     });
-  } catch {
+  } catch (error) {
+    if (typeof error === 'object' && error !== null && 'status' in error && error.status === 429) throw error;
     /* best-effort */
   }
 }

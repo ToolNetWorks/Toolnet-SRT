@@ -10,6 +10,7 @@ import { createReadStream, createWriteStream } from "node:fs";
 import { mkdir, rename, rm, stat } from "node:fs/promises";
 import { dirname } from "node:path";
 import { pipeline } from "node:stream/promises";
+import { Transform } from "node:stream";
 import { remoteSourceKey, validateSourceKey } from "./source-keys.mjs";
 
 const JOB_ID_PATTERN =
@@ -58,7 +59,7 @@ export function createR2Storage({ env = process.env, client } = {}) {
     },
   });
 
-  async function upload({ key, localPath, contentType, createOnce = false }) {
+  async function upload({ key, localPath, contentType, createOnce = false, signal }) {
     const file = await stat(localPath);
     if (!file.isFile() || file.size === 0) {
       throw new Error("INVALID_UPLOAD_FILE");
@@ -75,7 +76,7 @@ export function createR2Storage({ env = process.env, client } = {}) {
         ContentLength: file.size,
         ContentType: contentType,
         ...(createOnce ? { IfNoneMatch: "*" } : {}),
-      }));
+      }), signal ? { abortSignal: signal } : undefined);
     } finally {
       body.destroy();
     }
@@ -86,20 +87,39 @@ export function createR2Storage({ env = process.env, client } = {}) {
     return upload({ key: jobObjectKey(jobId, filename), localPath, contentType });
   }
 
-  async function uploadRemoteSource({ jobId, fetchToken, filename, localPath, contentType = "application/octet-stream" }) {
-    return upload({ key: remoteSourceKey(jobId, fetchToken, filename), localPath, contentType, createOnce: true });
+  async function uploadRemoteSource({ jobId, fetchToken, filename, localPath, contentType = "application/octet-stream", signal }) {
+    return upload({ key: remoteSourceKey(jobId, fetchToken, filename), localPath, contentType, createOnce: true, signal });
   }
 
-  async function downloadFile({ jobId, filename, localPath, sourceKey }) {
+  async function getRemoteSourceInfo({ jobId, fetchToken, filename, signal }) {
+    const key = remoteSourceKey(jobId, fetchToken, filename);
+    try {
+      const result = await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key }), signal ? { abortSignal: signal } : undefined);
+      return { key, size: result.ContentLength ?? 0 };
+    } catch (error) {
+      if (error.name === "NotFound" || error.$metadata?.httpStatusCode === 404) return null;
+      throw error;
+    }
+  }
+
+  async function downloadFile({ jobId, filename, localPath, sourceKey, maxBytes = MAX_SINGLE_UPLOAD, signal }) {
+    if (!Number.isSafeInteger(maxBytes) || maxBytes < 1 || maxBytes > MAX_SINGLE_UPLOAD) throw new Error('INVALID_DOWNLOAD_LIMIT');
     const key = sourceKey === undefined ? jobObjectKey(jobId, filename) : validateSourceKey(jobId, filename, sourceKey);
     await mkdir(dirname(localPath), { recursive: true, mode: 0o700 });
     const tempPath = `${localPath}.${randomUUID()}.part`;
     try {
-      const result = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+      const result = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }), signal ? { abortSignal:signal } : undefined);
       if (!result.Body) {
         throw new Error("R2_EMPTY_RESPONSE");
       }
-      await pipeline(result.Body, createWriteStream(tempPath, { mode: 0o600 }));
+      if (result.ContentLength !== undefined && (!Number.isSafeInteger(result.ContentLength) || result.ContentLength > maxBytes)) {
+        result.Body.destroy?.();
+        throw new Error('R2_SOURCE_TOO_LARGE');
+      }
+      let received=0;
+      const limiter=new Transform({ transform(chunk,_encoding,callback){received+=chunk.length;
+        if(received>maxBytes)return callback(new Error('R2_SOURCE_TOO_LARGE'));callback(null,chunk);} });
+      await pipeline(result.Body, limiter, createWriteStream(tempPath, { mode: 0o600 }), ...(signal ? [{signal}] : []));
       await rename(tempPath, localPath);
       return { key, localPath };
     } catch (error) {
@@ -132,5 +152,5 @@ export function createR2Storage({ env = process.env, client } = {}) {
     return { deleted: true, key };
   }
 
-  return { uploadFile, uploadRemoteSource, downloadFile, getFileInfo, deleteFile };
+  return { uploadFile, uploadRemoteSource, getRemoteSourceInfo, downloadFile, getFileInfo, deleteFile };
 }

@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { spawn } from "node:child_process";
-import { createWriteStream } from "node:fs";
+import { createReadStream, createWriteStream } from "node:fs";
 import { mkdtemp, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -9,6 +9,8 @@ import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { JobManager } from "./jobs.mjs";
 import { createExtendedRoutes } from "./extended-routes.mjs";
+import { EventEmitter } from "node:events";
+import { readDurableConfig } from "./storage/durable-config.mjs";
 
 // Load ASR only when a transcription request needs it.
 let asrModulePromise;
@@ -40,11 +42,37 @@ const formats = new Map([
 ]);
 
 let busy = false;
-const jobManager = new JobManager({ canRun: () => !busy });
+const config = readDurableConfig(process.env);
+let shuttingDown = false, activeRequests = 0, shutdownDeadline = 0;
+const requestWaiters = new Set();
+let runtime = null;
+let jobManager;
+if (config.enabled) {
+  const [{ createDurableRuntime }, { createDurableAssembly }] = await Promise.all([
+    import('./storage/durable-runtime.mjs'), import('./storage/durable-assembly.mjs'),
+  ]);
+  const timing = process.env.TOOLNET_SRT_TIMING_DIAGNOSTICS === 'true'
+    ? event => console.error(JSON.stringify({ type:'durable_timing', ...event })) : null;
+  runtime = createDurableRuntime({ assemble: createDurableAssembly({ onTiming: timing }), processRef: new EventEmitter(),
+    beforeClose: () => new Promise((resolve, reject) => {
+      if (!activeRequests) return resolve();
+      const remaining = Math.max(0, shutdownDeadline - Date.now());
+      const timer = setTimeout(() => { requestWaiters.delete(done); reject(new Error('HTTP_DRAIN_TIMEOUT')); }, remaining);
+      function done() { clearTimeout(timer); requestWaiters.delete(done); resolve(); }
+      requestWaiters.add(done);
+    }),
+  });
+  await runtime.start();
+  jobManager = runtime.getManager();
+} else {
+  jobManager = new JobManager({ canRun: () => !busy });
+}
 const extendedRoutes = createExtendedRoutes({
   manager: jobManager,
   authenticate,
   apiKeyPresent: () => Boolean(API_KEY),
+  durable: config.enabled,
+  isShuttingDown: () => shuttingDown,
 });
 
 function authenticate(value) {
@@ -165,7 +193,7 @@ async function handleTranscribe(req, res) {
     return json(res, 401, "Unauthorized");
   }
 
-  if (busy || jobManager.isBusy()) {
+  if (busy || jobManager.isBusy?.()) {
     return json(res, 429, "Worker busy");
   }
 
@@ -198,6 +226,7 @@ async function handleTranscribe(req, res) {
   res.once("close", onClose);
 
   let directory;
+  let timeout;
 
   try {
     directory = await mkdtemp(join(tmpdir(), "toolnet-srt-"));
@@ -206,6 +235,20 @@ async function handleTranscribe(req, res) {
     const audio = join(directory, "audio.mp3");
 
     await saveUpload(req, input);
+    if (config.experimentalAsrSemaphore) {
+      const { runDurableSynchronous } = await import('./storage/durable-sync-transcribe.mjs');
+      const source = createReadStream(input);
+      source.headers = { 'content-length': String((await stat(input)).size) };
+      timeout = setTimeout(() => controller.abort(), 420000);
+      let output;
+      try { output = await runDurableSynchronous({ manager:jobManager, source, mimeType:mime, signal:controller.signal }); }
+      finally { source.destroy(); }
+      if (controller.signal.aborted) return;
+      res.writeHead(200, { 'Content-Type':'application/x-subrip; charset=utf-8',
+        'Content-Disposition':'attachment; filename="subtitle.srt"', 'Content-Length':output.length, 'Cache-Control':'no-store' });
+      res.end(output);
+      return;
+    }
     await extractAudio(input, audio, controller.signal);
 
     const { transcribe, toSrt } = await getAsrModule();
@@ -244,8 +287,9 @@ async function handleTranscribe(req, res) {
     json(res, status, "Transcription failed");
 
   } finally {
+    if (timeout) clearTimeout(timeout);
     busy = false;
-    jobManager.kick();
+    jobManager.kick?.();
     res.off("close", onClose);
 
     if (directory) {
@@ -258,6 +302,15 @@ async function handleTranscribe(req, res) {
 }
 
 const server = createServer((req, res) => {
+  activeRequests++;
+  let counted = true;
+  const finished = () => {
+    if (!counted) return;
+    counted = false;
+    if (--activeRequests === 0) for (const notify of requestWaiters) notify();
+  };
+  res.once('finish', finished);
+  res.once('close', finished);
   const path = new URL(
     req.url || "/", "http://localhost"
   ).pathname;
@@ -268,26 +321,45 @@ const server = createServer((req, res) => {
   }
 
   if (req.method === "GET" && path === "/api/health") {
-    res.writeHead(200, {
+    res.writeHead(shuttingDown ? 503 : 200, {
       "Content-Type": "text/plain; charset=utf-8",
       "Cache-Control": "no-store",
     });
 
-    res.end("OK");
+    res.end(shuttingDown ? "SHUTTING_DOWN" : "OK");
     return;
   }
 
   if (req.method === "GET" && path === "/health") {
-    return json(res, 200, "ToolNet-SRT ready");
+    return json(res, shuttingDown ? 503 : 200, shuttingDown ? "shutting_down" : "ToolNet-SRT ready");
   }
 
   if (req.method === "POST" && path === "/v1/transcribe") {
+    if (shuttingDown) return json(res, 503, "Server shutting down");
     void handleTranscribe(req, res);
     return;
   }
 
   json(res, 404, "Not found");
 });
+
+if (runtime) {
+  const shutdown = () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    shutdownDeadline = Date.now() + config.shutdownGraceMs;
+    process.removeListener('SIGTERM', shutdown);
+    process.removeListener('SIGINT', shutdown);
+    server.close();
+    server.closeIdleConnections?.();
+    void runtime.shutdown().then(result => {
+      if (!result.stopped) console.error('[ToolNet-SRT] shutdown timed out');
+    }).catch(() => { console.error('[ToolNet-SRT] shutdown drain failed'); process.exitCode = 1; });
+  };
+  process.once('SIGTERM', shutdown);
+  process.once('SIGINT', shutdown);
+  server.on('error', () => { process.exitCode = 1; shutdown(); });
+}
 
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`ToolNet-SRT listening on ${PORT}`);

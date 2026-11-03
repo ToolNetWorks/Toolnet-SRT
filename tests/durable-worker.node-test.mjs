@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 import { createDurableWorker } from "../server/storage/durable-worker.mjs";
 
-function setup({ sourceFails = false, staleLease = false } = {}) {
+function setup({ sourceFails = false, staleLease = false, asrSemaphore = null } = {}) {
   const jobId = randomUUID();
   const leaseToken = randomUUID();
   const calls = [];
@@ -30,7 +30,7 @@ function setup({ sourceFails = false, staleLease = false } = {}) {
     },
   };
   const worker = createDurableWorker({
-    leases, storage, results,
+    leases, storage, results, asrSemaphore,
     split: async () => { calls.push("split"); return [{ path: "mock-segment.mp3", startMs: 0, endMs: 1000 }]; },
     transcribe: async () => { calls.push("transcribe"); return [{ text: "Hello", startMs: 0, endMs: 1000 }]; },
     toSrt: async () => { calls.push("to-srt"); return "1\n00:00:00,000 --> 00:00:01,000\nHello\n"; },
@@ -48,6 +48,19 @@ test("Worker completes R2 -> ASR -> R2 -> Neon", async () => {
   assert.ok(calls.indexOf("split") < calls.indexOf("transcribe"));
   assert.ok(calls.indexOf("to-srt") < calls.indexOf("upload-result"));
   assert.ok(calls.indexOf("upload-result") < calls.indexOf("complete"));
+});
+
+test('Injected semaphore fences the legacy segmented ASR path', async () => {
+  const calls = [];
+  const semaphore = {
+    async acquire(owner) { calls.push('acquire'); assert.equal(owner.chunkIndex, 0); return {...owner,token:randomUUID()}; },
+    async heartbeat() { calls.push('heartbeat'); return true; },
+    async release() { calls.push('release'); return true; },
+    async rateLimited() { throw new Error('UNEXPECTED_RATE_LIMIT'); },
+  };
+  const {worker}=setup({asrSemaphore:semaphore});
+  assert.equal((await worker.runOnce()).status,'completed');
+  assert.deepEqual(calls,['acquire','heartbeat','heartbeat','release']);
 });
 
 test("R2 source failure does not complete job", async () => {

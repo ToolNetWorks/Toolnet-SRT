@@ -39,8 +39,8 @@ export class JianYingASR {
   }
 
   /**
-   * Wrapped `fetch` that checks the HTTP status code.
-   * Throws with a snippet of the response body on non-2xx responses.
+   * Wrapped `fetch` that checks the HTTP status code without exposing
+   * signed URLs or upstream response bodies in errors.
    */
   private checkedFetch = async (
     url: string,
@@ -49,8 +49,18 @@ export class JianYingASR {
     if (this.options.signal?.aborted) throw new Error("Cancelled");
     const res = await fetch(url, { ...init, signal: this.options.signal });
     if (!res.ok) {
-      const body = await res.text().catch(() => "<unreadable>");
-      throw new Error(`HTTP ${res.status} from ${url}: ${body.slice(0, 300)}`);
+      const error = new Error(`HTTP ${res.status} from ASR service`) as Error & {
+        status: number; retryAfterMs?: number;
+      };
+      error.status = res.status;
+      const retryAfter = res.headers.get('retry-after');
+      if (res.status === 429 && retryAfter) {
+        const seconds = /^\d+$/.test(retryAfter) ? Number(retryAfter) : NaN;
+        const timestamp = Number.isFinite(seconds) ? NaN : Date.parse(retryAfter);
+        const delay = Number.isFinite(seconds) ? seconds * 1000 : timestamp - Date.now();
+        if (Number.isSafeInteger(delay) && delay >= 0) error.retryAfterMs = delay;
+      }
+      throw error;
     }
     return res;
   };

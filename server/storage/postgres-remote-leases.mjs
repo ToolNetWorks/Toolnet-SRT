@@ -83,7 +83,7 @@ export function createPostgresRemoteLeases({
 
     return transaction(async client => {
       const { rows } = await client.query(`
-        SELECT q.job_id, q.encrypted_url, q.attempt_count
+        SELECT q.job_id, q.encrypted_url, q.attempt_count, j.extension
         FROM toolnet_srt_remote_fetch_jobs q
         JOIN toolnet_srt_jobs j ON j.id = q.job_id
         WHERE j.status = 'queued'
@@ -123,6 +123,7 @@ export function createPostgresRemoteLeases({
       return {
         jobId: selected.job_id,
         encryptedUrl: selected.encrypted_url,
+        extension: selected.extension,
         workerId,
         token,
         attemptCount: updated.rows[0].attempt_count,
@@ -193,8 +194,9 @@ export function createPostgresRemoteLeases({
 
       const willRetry = retryable && row.attempt_count < maxAttempts;
       if (willRetry) {
-        const seconds = Math.min(3600,
+        const cap = Math.min(3600,
           retryDelaySeconds * 2 ** Math.min(row.attempt_count - 1, 6));
+        const seconds = Math.max(1, Math.ceil(cap * (0.5 + Math.random() * 0.5)));
         await client.query(`
           UPDATE toolnet_srt_remote_fetch_jobs
           SET status = 'pending', lease_owner = NULL,

@@ -6,6 +6,7 @@ export const MCP_TOOLS = [
     description: 'Start a SRT transcription job from a permitted HTTPS media URL. The server administrator must allowlist the media hostname.',
     inputSchema: { type: 'object', properties: {
       url: { type: 'string', description: 'HTTPS URL of audio/video on an allowed hostname' },
+      idempotency_key: { type: 'string', minLength: 1, maxLength: 255, description: 'Stable retry key; required in durable mode.' },
     }, required: ['url'], additionalProperties: false },
   },
   {
@@ -63,7 +64,8 @@ export function createMcpProtocol(service) {
       }
       if (name === 'submit_transcription_url') {
         if (typeof args.url !== 'string') return error(id, -32602, 'url must be a string');
-        return result(id, toolResult(await service.createJobFromUrl(args.url)));
+        if (args.idempotency_key !== undefined && typeof args.idempotency_key !== 'string') return error(id, -32602, 'idempotency_key must be a string');
+        return result(id, toolResult(await service.createJobFromUrl(args.url, { idempotencyKey: args.idempotency_key })));
       }
       if (name === 'get_transcription_job') {
         if (typeof args.job_id !== 'string') return error(id, -32602, 'job_id must be a string');
@@ -81,7 +83,9 @@ export function createMcpProtocol(service) {
       }
       return error(id, -32602, 'Unknown tool');
     } catch (e) {
-      return result(id, toolResult({ error: e.code || 'TOOL_ERROR', message: e.message }, true));
+      const code = typeof e?.code === 'string' && /^[A-Z][A-Z0-9_]{0,79}$/.test(e.code) ? e.code :
+        typeof e?.details?.error === 'string' && /^[A-Z][A-Z0-9_]{0,79}$/.test(e.details.error) ? e.details.error : 'TOOL_ERROR';
+      return result(id, toolResult({ error: code, message: code }, true));
     }
   };
 }

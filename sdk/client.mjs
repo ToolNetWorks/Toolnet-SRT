@@ -42,10 +42,10 @@ export class ToolNetSRTClient {
     });
   }
 
-  async createJobFromUrl(url, { signal } = {}) {
+  async createJobFromUrl(url, { signal, idempotencyKey } = {}) {
     if (!url) throw new Error('url is required');
     return this.#request('/v1/jobs/url', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...(idempotencyKey === undefined ? {} : { 'Idempotency-Key': idempotencyKey }) },
       body: JSON.stringify({ url }), signal,
     });
   }

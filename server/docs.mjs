@@ -30,6 +30,7 @@ export const OPENAPI = {
       responses: { '202': { description: 'Queued', content: { 'application/json': { schema: { $ref: '#/components/schemas/Job' } } } } },
     } },
     '/v1/jobs/url': { post: { summary: 'Create job from allowlisted HTTPS media URL', security: secured,
+      parameters: [{ name: 'Idempotency-Key', in: 'header', required: false, description: 'Required in durable mode; use the same key when retrying the same URL.', schema: { type: 'string', minLength: 1, maxLength: 255 } }],
       requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { url: { type: 'string', format: 'uri' } }, required: ['url'] } } } },
       responses: { '202': { description: 'Queued', content: { 'application/json': { schema: { $ref: '#/components/schemas/Job' } } } } },
     } },
@@ -71,7 +72,8 @@ export const DOCS_HTML = `<!doctype html>
   -o subtitles.srt</pre>
 <h2>4. Tạo job từ URL HTTPS</h2><pre>curl -X POST 'https://toolnet-srt.onrender.com/v1/jobs/url' \\
   -H 'X-API-Key: YOUR_API_KEY' -H 'Content-Type: application/json' \\
+  -H 'Idempotency-Key: YOUR_STABLE_REQUEST_ID' \\
   -d '{"url":"https://media.example.com/video.mp4"}'</pre>
-<p>Chỉ host được liệt kê trong <code>TOOLNET_SRT_ALLOWED_MEDIA_HOSTS</code> mới được chấp nhận. Không cho phép redirect.</p>
+<p>Chỉ host được liệt kê trong <code>TOOLNET_SRT_ALLOWED_MEDIA_HOSTS</code> mới được chấp nhận. Không cho phép redirect. Durable mode yêu cầu key ổn định cho mỗi yêu cầu và dùng lại key khi retry.</p>
 <h2>5. SDK và MCP</h2><p>SDK: <code>sdk/client.mjs</code>; MCP stdio: <code>node mcp/stdio.mjs</code>; MCP qua HTTP: <code>POST /mcp</code> (đặt <code>X-API-Key</code> ở cấu hình MCP client).</p>
-<hr><p><small>Giới hạn quan trọng: job và file lưu trên filesystem cục bộ; Render Free có thể xóa khi ngủ, restart hoặc redeploy. Không bảo đảm xử lý bền vững phim dài. SRT là định dạng đầu ra duy nhất trong bản này.</small></p></body></html>`;
+<hr><p><small>Chế độ mặc định lưu job trên filesystem cục bộ. Durable mode sử dụng Neon và R2 khi đã được cấu hình và khởi động thành công. API key dùng chung cấp quyền cho toàn bộ job của một tenant.</small></p></body></html>`;

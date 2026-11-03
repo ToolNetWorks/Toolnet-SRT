@@ -78,8 +78,7 @@ export function buildHeaders(
 /**
  * Parse a JSON response body.
  *
- * Throws a descriptive error when the body is not valid JSON, including
- * the first 500 characters of the raw text.
+ * Throws a descriptive error without including the upstream response body.
  */
 export function parseJsonResponse<T>(
   text: string,
@@ -90,7 +89,7 @@ export function parseJsonResponse<T>(
     return JSON.parse(text) as T;
   } catch {
     throw new Error(
-      `${label} returned non-JSON (HTTP ${status}): ${text.slice(0, 500)}`,
+      `${label} returned non-JSON (HTTP ${status})`,
     );
   }
 }

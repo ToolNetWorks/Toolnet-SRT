@@ -82,6 +82,7 @@ export async function downloadPinnedHttps(rawUrl, destination, {
           activeResponse = response;
           void (async () => {
             if (response.statusCode >= 300 && response.statusCode < 400) throw new JobError("SOURCE_REDIRECT_BLOCKED", 403);
+            if (response.statusCode >= 400 && response.statusCode < 500) throw new JobError("SOURCE_HTTP_CLIENT_ERROR", 400);
             if (response.statusCode !== 200) throw new JobError("SOURCE_HTTP_STATUS", 502);
             const length = response.headers["content-length"];
             if (length !== undefined && (!/^\d+$/.test(String(length)) || Number(length) > maxBytes)) {

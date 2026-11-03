@@ -16,12 +16,13 @@ function publicJob(job) {
   };
 }
 
-export function createDurableJobManager({ jobStore, resultStorage, cancellation, ingress = null, remoteIngress = null } = {}) {
+export function createDurableJobManager({ jobStore, resultStorage, cancellation, ingress = null, remoteIngress = null, remoteQueue = null } = {}) {
   if (typeof jobStore?.getJob !== "function") throw new Error("JOB_STORE_REQUIRED");
   if (typeof resultStorage?.getResult !== "function") throw new Error("RESULT_STORAGE_REQUIRED");
   if (typeof cancellation?.cancelJob !== "function") throw new Error("CANCELLATION_MANAGER_REQUIRED");
   if (ingress !== null && typeof ingress?.createUpload !== "function") throw new Error("INVALID_DURABLE_INGRESS");
   if (remoteIngress !== null && typeof remoteIngress?.createRemote !== "function") throw new Error("INVALID_DURABLE_REMOTE_INGRESS");
+  if (remoteQueue !== null && typeof remoteQueue?.enqueue !== "function") throw new Error("INVALID_REMOTE_QUEUE");
 
   async function createUpload(req, mimeType) {
     if (!ingress) throw new JobError("DURABLE_UPLOAD_NOT_CONFIGURED", 503);
@@ -32,7 +33,11 @@ export function createDurableJobManager({ jobStore, resultStorage, cancellation,
     return publicJob(job);
   }
 
-  async function createRemote(rawUrl) {
+  async function createRemote(rawUrl, options = {}) {
+    if (remoteQueue) {
+      if (typeof options?.idempotencyKey !== 'string') throw new JobError('INVALID_IDEMPOTENCY_KEY', 400);
+      return remoteQueue.enqueue(rawUrl, { idempotencyKey: options.idempotencyKey, scope: 'single-tenant' });
+    }
     if (!remoteIngress) throw new JobError("REMOTE_URL_DISABLED", 503);
     const job = await remoteIngress.createRemote(rawUrl);
     if (!job || !UUID_RE.test(job.id ?? "") || job.status !== "queued") {

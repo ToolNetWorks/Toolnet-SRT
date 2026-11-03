@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { EventEmitter } from 'node:events';
 import { createDurableAssembly } from "../server/storage/durable-assembly.mjs";
 
 const env = { DATABASE_URL: "postgresql://unit:password@db.invalid/test", R2_ACCOUNT_ID: "a".repeat(32),
@@ -10,7 +11,7 @@ const config = { enabled: true, concurrency: 2, pollIntervalMs: 100, errorBackof
 function harness({ failAt = null } = {}) {
   const events = [];
   let workerOptions = null, schedulerOptions = null;
-  const pool = { async query() { return { rows: [] }; }, async end() { events.push("neon-close"); } };
+  const pool = Object.assign(new EventEmitter(),{ async query() { return { rows: [] }; }, async end() { events.push("neon-close"); } });
   const client = { async send() { return {}; }, destroy() { events.push("r2-close"); } };
   const manager = { createUpload() {}, createRemote() {}, getJob() {}, getResult() {}, cancelJob() {} };
   const factories = {
@@ -33,7 +34,7 @@ function harness({ failAt = null } = {}) {
     loadAsr: async () => ({ transcribe: async ({ input }) => { events.push("asr-call"); return [{ text: input }]; },
       toSrt: segments => { events.push("srt-call"); return String(segments.length); } }),
   };
-  return { assemble: createDurableAssembly({ factories }), events,
+  return { assemble: createDurableAssembly({ factories }), events, pool,
     getWorkerOptions: () => workerOptions, getSchedulerOptions: () => schedulerOptions };
 }
 
@@ -44,6 +45,13 @@ test("Assembly creates components without starting", async () => {
   assert.equal(h.getSchedulerOptions().maxConcurrency, 2);
   await runtime.close(); assert.deepEqual(h.events.slice(-2), ["r2-close", "neon-close"]);
   console.log("ASSEMBLY WITHOUT AUTOSTART: PASS");
+});
+
+test('Idle database disconnect is handled without exposing its message',async()=>{
+  const h=harness(),runtime=await h.assemble({env,config});let logged='';const original=console.error;
+  try {console.error=(...args)=>{logged+=args.join(' ');};h.pool.emit('error',new Error('PRIVATE_DATABASE_SECRET'));
+    assert.match(logged,/idle database connection lost/);assert.ok(!logged.includes('PRIVATE_DATABASE_SECRET'));
+  } finally {console.error=original;await runtime.close();}
 });
 
 test("Each worker receives real dependencies", async () => {

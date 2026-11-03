@@ -23,7 +23,8 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/dist ./dist
-COPY package.json ./
+COPY package*.json ./
+RUN npm ci --omit=dev && npm cache clean --force
 COPY server/ ./server/
 COPY mcp/ ./mcp/
 COPY sdk/ ./sdk/

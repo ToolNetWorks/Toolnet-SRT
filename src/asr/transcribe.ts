@@ -45,13 +45,13 @@ export async function submitTask(
 
   if (json.ret !== "0") {
     throw new Error(
-      `Submit failed: ${json.errmsg ?? "Unknown error"} (ret: ${json.ret})`,
+      "Submit failed",
     );
   }
 
   if (typeof json.data?.id !== "string" || json.data.id.trim() === "") {
     throw new Error(
-      `Malformed submit response: missing task id: ${JSON.stringify(json).slice(0, 500)}`,
+      "Malformed submit response: missing task id",
     );
   }
 
@@ -83,7 +83,7 @@ async function queryTask(
 
   if (json.ret !== "0") {
     throw new Error(
-      `Query failed: ${json.errmsg ?? "Unknown error"} (ret: ${json.ret})`,
+      "Query failed",
     );
   }
   return json;
@@ -114,7 +114,7 @@ export async function pollForResult(
     }
     if (!Array.isArray(resp.data.utterances)) {
       throw new Error(
-        `Malformed query response: missing utterances: ${JSON.stringify(resp).slice(0, 500)}`,
+        "Malformed query response: missing utterances",
       );
     }
     return resp;
@@ -132,7 +132,7 @@ export async function pollForResult(
 export function parseSegments(resp: JianYingResponse): SubtitleSegment[] {
   if (!Array.isArray(resp.data?.utterances)) {
     throw new Error(
-      `Malformed query response: missing utterances: ${JSON.stringify(resp).slice(0, 500)}`,
+      "Malformed query response: missing utterances",
     );
   }
 
