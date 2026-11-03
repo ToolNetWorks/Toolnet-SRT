@@ -27,8 +27,9 @@ function docker(...args) {
   return result.stdout.trim();
 }
 try {
-  const base = (await pool.query('SELECT current_schema() AS name')).rows[0]?.name;
-  if (!/^[a-z_][a-z0-9_]*$/i.test(base ?? '')) throw new Error('INVALID_BASE_SCHEMA');
+  // Neon transaction poolers can start with an empty search_path.
+  const base = 'public';
+  if (!(await pool.query("SELECT to_regclass('public.toolnet_srt_jobs') AS table_ref")).rows[0]?.table_ref) throw new Error('BASE_TABLE_MISSING');
   await pool.query(`CREATE SCHEMA "${schema}"`); schemaCreated = true;
   await pool.query(`CREATE TABLE "${schema}".toolnet_srt_jobs (LIKE "${base}".toolnet_srt_jobs INCLUDING ALL)`);
   const client = await pool.connect();

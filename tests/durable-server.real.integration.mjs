@@ -16,8 +16,9 @@ const testJobs = [];
 let created = false, child, exit, worker, workerExit, workerReady = false, success = false, cleanup = true;
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 try {
-  const base = (await pool.query('SELECT current_schema() AS name')).rows[0]?.name;
-  if (!/^[a-z_][a-z0-9_]*$/i.test(base ?? '')) throw Error('INVALID_BASE_SCHEMA');
+  // Neon transaction poolers may expose an empty search_path by default.
+  const base = 'public';
+  if (!(await pool.query("SELECT to_regclass('public.toolnet_srt_jobs') AS table_ref")).rows[0]?.table_ref) throw Error('BASE_TABLE_MISSING');
   await pool.query(`CREATE SCHEMA "${schema}"`); created = true;
   await pool.query(`CREATE TABLE "${schema}".toolnet_srt_jobs (LIKE "${base}".toolnet_srt_jobs INCLUDING ALL)`);
   const setup = await pool.connect();

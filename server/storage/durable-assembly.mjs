@@ -23,11 +23,12 @@ import { createPostgresChunkCheckpoints } from "./postgres-chunk-checkpoints.mjs
 import { createPostgresAsrSemaphore } from "./postgres-asr-semaphore.mjs";
 import { createLocalLimiter } from './local-limiter.mjs';
 import { extractTimelineChunk } from './chunk-extraction.mjs';
+import { createPublicPostgresPool } from './postgres-public-pool.mjs';
 
 const defaults = {
-  poolFactory: env => new pg.Pool({ connectionString: env.DATABASE_URL,
+  poolFactory: env => createPublicPostgresPool(new pg.Pool({ connectionString: env.DATABASE_URL,
     max: Math.max(3, Number(env.DURABLE_WORKER_CONCURRENCY || 1) + 2), connectionTimeoutMillis: 10000,
-    idleTimeoutMillis: 30000, application_name: "toolnet-srt-durable" }),
+    idleTimeoutMillis: 30000, application_name: "toolnet-srt-durable" })),
   clientFactory: env => new S3Client({ region: "auto", endpoint: `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
     credentials: { accessKeyId: env.R2_ACCESS_KEY_ID, secretAccessKey: env.R2_SECRET_ACCESS_KEY },
     forcePathStyle: true, requestChecksumCalculation: 'WHEN_REQUIRED', maxAttempts: 3 }),
