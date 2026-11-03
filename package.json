@@ -88,5 +88,9 @@
     "package.json",
     "sdk",
     "mcp"
-  ]
+  ],
+  "dependencies": {
+    "@aws-sdk/client-s3": "3.1161.0",
+    "pg": "8.23.1"
+  }
 }
