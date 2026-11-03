@@ -23,16 +23,25 @@ for (const [network, bits] of [
 export function isPublicIp(address) {
   const family = isIP(address);
   if (!family) return false;
-  return family === 4 ? !denied4.check(address, "ipv4") : !denied6.check(address, "ipv6");
+  if (family === 4) return !denied4.check(address, "ipv4");
+  // Only globally routed unicast IPv6 can be a destination. This excludes
+  // site-local and reserved ranges in addition to the explicit deny list.
+  return global6.check(address, "ipv6") && !denied6.check(address, "ipv6");
 }
 
+const global6 = new BlockList();
+global6.addSubnet("2000::", 3, "ipv6");
+
 export function validateRemoteSource(rawUrl, allowedHosts) {
-  if (!Array.isArray(allowedHosts) || !allowedHosts.length) throw new JobError("REMOTE_URL_DISABLED", 503);
+  if (allowedHosts !== null && (!Array.isArray(allowedHosts) || !allowedHosts.length)) throw new JobError("REMOTE_URL_DISABLED", 503);
   let url;
   try { url = new URL(rawUrl); } catch { throw new JobError("INVALID_SOURCE_URL", 400); }
   if (url.protocol !== "https:" || url.username || url.password || (url.port && url.port !== "443") ||
       !url.hostname || isIP(url.hostname.replace(/^\[|\]$/g, ""))) throw new JobError("INVALID_SOURCE_URL", 400);
-  if (!allowedHosts.some(host => typeof host === "string" && host.toLowerCase() === url.hostname.toLowerCase())) {
+  const hostname = url.hostname.toLowerCase().replace(/\.$/, "");
+  if (!hostname.includes('.') || hostname === 'localhost' || hostname.endsWith('.localhost') ||
+      hostname.endsWith('.local')) throw new JobError("INVALID_SOURCE_URL", 400);
+  if (allowedHosts !== null && !allowedHosts.some(host => typeof host === "string" && host.toLowerCase() === url.hostname.toLowerCase())) {
     throw new JobError("SOURCE_HOST_NOT_ALLOWED", 403);
   }
   return url;

@@ -16,6 +16,7 @@ const schema = `srt_http_server_${tag}`;
 const prefix = `staging/toolnet-srt/${tag}/`;
 const apiName = `toolnet-staging-api-${tag}`;
 const workerName = `toolnet-staging-worker-${tag}`;
+const stagingImage = process.env.QA_STAGING_IMAGE || 'toolnet-srt:staging-check';
 const envPath = resolve(`.env.staging-${tag}`);
 const apiKey = randomBytes(32).toString('base64url');
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 1, connectionTimeoutMillis: 10000 });
@@ -47,7 +48,7 @@ try {
   const values = Object.fromEntries(required.map(name => [name, process.env[name]]));
   Object.assign(values, {
     TEST_SERVER_SCHEMA: schema, TEST_STAGING_R2_PREFIX: prefix, DURABLE_JOBS_ENABLED: 'true', DURABLE_RUN_WORKERS: 'false',
-    TOOLNET_SRT_API_KEY: apiKey, TOOLNET_SRT_ALLOWED_MEDIA_HOSTS: 'storage.googleapis.com',
+    TOOLNET_SRT_API_KEY: apiKey,
     TOOLNET_SRT_REMOTE_URL_ENCRYPTION_KEY: randomBytes(32).toString('base64url'),
     TOOLNET_SRT_REMOTE_IDEMPOTENCY_KEY: randomBytes(32).toString('base64url'),
     DURABLE_WORKER_CONCURRENCY: '1', DURABLE_ASR_GLOBAL_CONCURRENCY: '1', DURABLE_CHUNK_SECONDS: '60',
@@ -58,9 +59,9 @@ try {
   const common = ['--env-file',envPath,'--mount',`type=bind,src=${fixture},dst=/app/tests/fixtures,readonly`,
     '--restart','unless-stopped'];
   docker('run','-d','--name',apiName,...common,'-p',`127.0.0.1:${port}:10000`,
-    'toolnet-srt:staging-check','node','--import','./tests/fixtures/isolated-docker-staging.mjs','server/index.mjs'); apiCreated = true;
+    stagingImage,'node','--import','./tests/fixtures/isolated-docker-staging.mjs','server/index.mjs'); apiCreated = true;
   docker('run','-d','--name',workerName,...common,
-    'toolnet-srt:staging-check','node','--import','./tests/fixtures/isolated-docker-staging.mjs','server/durable-worker-service.mjs'); workerCreated = true;
+    stagingImage,'node','--import','./tests/fixtures/isolated-docker-staging.mjs','server/durable-worker-service.mjs'); workerCreated = true;
   const baseUrl = `http://127.0.0.1:${port}`;
   for (let i=0;i<200;i++) { try { if ((await fetch(baseUrl+'/health')).ok) break; } catch {} if(i===199) throw Error('STAGING_API_TIMEOUT'); await pause(250); }
   for (let i=0;i<200;i++) { if(docker('logs',workerName).includes('DURABLE_WORKER_READY')) break; if(i===199) throw Error('STAGING_WORKER_TIMEOUT'); await pause(250); }
@@ -82,7 +83,7 @@ try {
   // Verify queued URL survives a stopped worker and is picked up after restart.
   docker('stop','-t','40',workerName);
   response = await fetch(baseUrl+'/v1/jobs/url',{method:'POST',headers:{...headers,'Content-Type':'application/json','Idempotency-Key':'staging-url-restart'},
-    body:JSON.stringify({url:'https://storage.googleapis.com/cloud-samples-data/speech/hello.wav'})});
+    body:JSON.stringify({url:process.env.QA_REMOTE_TEST_URL || 'https://storage.googleapis.com/cloud-samples-data/speech/hello.wav'})});
   assert.equal(response.status,202); const remote=await response.json();
   response = await fetch(`${baseUrl}/v1/jobs/${remote.id}`,{headers}); assert.equal((await response.json()).status,'queued');
   docker('start',workerName); await waitJob(remote.id); await result(remote.id);

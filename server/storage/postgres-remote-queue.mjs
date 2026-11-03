@@ -29,9 +29,9 @@ export function createPostgresRemoteQueue({
 } = {}) {
   if (typeof pool?.connect !== "function") throw new Error("REMOTE_QUEUE_POOL_REQUIRED");
   if (typeof vault?.encrypt !== "function") throw new Error("REMOTE_URL_VAULT_REQUIRED");
-  if (!Array.isArray(allowedHosts) || allowedHosts.some(host => typeof host !== "string")) throw new Error("INVALID_REMOTE_ALLOWED_HOSTS");
+  if (allowedHosts !== null && (!Array.isArray(allowedHosts) || allowedHosts.some(host => typeof host !== "string"))) throw new Error("INVALID_REMOTE_ALLOWED_HOSTS");
   if (typeof jobStoreFactory !== "function") throw new Error("INVALID_JOB_STORE_FACTORY");
-  const hosts = [...new Set(allowedHosts.map(host => host.trim().toLowerCase()).filter(Boolean))];
+  const hosts = allowedHosts === null ? null : [...new Set(allowedHosts.map(host => host.trim().toLowerCase()).filter(Boolean))];
   // Legacy callers without an idempotency key do not need this new secret.
   const secret = idempotencySecret === undefined ? null : digestKey(idempotencySecret);
 

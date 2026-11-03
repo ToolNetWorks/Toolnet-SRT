@@ -45,6 +45,36 @@ test('Only exact HTTPS host is permitted', () => {
   }
   console.log('HTTPS HOST ALLOWLIST: PASS');
 });
+test('Public-host mode accepts different domains but rejects local hostnames and literals', () => {
+  for (const host of ['storage.googleapis.com', 'www.google.com', 'media.example']) {
+    assert.equal(validateRemoteSource(`https://${host}/audio`, null).hostname, host);
+  }
+  for (const url of ['https://localhost/a','https://localhost./a','https://a.localhost/a',
+    'https://printer.local/a','https://metadata/a','https://127.0.0.1/a','https://[::1]/a',
+    'https://169.254.169.254/a','https://0x7f000001/a','https://user@public.example/a']) {
+    assert.throws(() => validateRemoteSource(url, null), { code: 'INVALID_SOURCE_URL' });
+  }
+  for (const ip of ['fec0::1','4000::1','::ffff:8.8.8.8']) assert.equal(isPublicIp(ip), false);
+});
+test('Public-host mode pins DNS and rejects any private rebinding answer', async () => {
+  await withPath(async path => {
+    let connected = false;
+    await assert.rejects(downloadPinnedHttps('https://arbitrary.example/audio', path, {
+      allowedHosts: null, maxBytes: 100,
+      lookupAll: async () => [{ address:'1.1.1.1',family:4 },{ address:'169.254.169.254',family:4 }],
+      requestFn: () => { connected = true; },
+    }), { code:'SOURCE_ADDRESS_NOT_PUBLIC', status:403 });
+    assert.equal(connected, false);
+    let dial;
+    await downloadPinnedHttps('https://another.example/audio', path, {
+      allowedHosts: null, maxBytes:100, lookupAll:async () => records,
+      requestFn:fakeRequest({ onDial: value => { dial=value; } }),
+    });
+    assert.equal(dial.options.servername, 'another.example');
+    assert.equal(dial.options.rejectUnauthorized, true);
+    assert.deepEqual(dial.addresses, records);
+  });
+});
 test('HTTPS dials validated pinned address', async () => {
   await withPath(async path => {
     let dial;

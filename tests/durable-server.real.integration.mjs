@@ -33,7 +33,7 @@ try {
   const socket = createServer(); socket.listen(0, '127.0.0.1'); await once(socket, 'listening');
   const port = socket.address().port; await new Promise(resolve => socket.close(resolve));
   const childEnv = { ...env, PORT: String(port), TEST_SERVER_SCHEMA: schema, DURABLE_JOBS_ENABLED: 'true',
-      TOOLNET_SRT_API_KEY: 'isolated-test-key', TOOLNET_SRT_ALLOWED_MEDIA_HOSTS: 'media.example,storage.googleapis.com',
+      TOOLNET_SRT_API_KEY: 'isolated-test-key', TOOLNET_SRT_ALLOWED_MEDIA_HOSTS: '',
       TOOLNET_SRT_REMOTE_URL_ENCRYPTION_KEY: randomBytes(32).toString('base64url'),
       TOOLNET_SRT_REMOTE_IDEMPOTENCY_KEY: randomBytes(32).toString('base64url'),
       DURABLE_POLL_INTERVAL_MS: '100', DURABLE_FETCH_POLL_INTERVAL_MS: '100', DURABLE_SHUTDOWN_GRACE_MS: '10000' };
@@ -70,7 +70,7 @@ try {
   const row = await pool.query(`SELECT source_key FROM "${schema}".toolnet_srt_jobs WHERE id=$1`, [job.id]);
   assert.equal(row.rows[0].source_key, null);
   console.log('SERVER FEATURE FLAG + ISOLATED PREFLIGHT + HTTP QUEUE: PASS');
-  const realUrl = 'https://storage.googleapis.com/cloud-samples-data/speech/hello.wav';
+  const realUrl = env.QA_REMOTE_TEST_URL || 'https://storage.googleapis.com/cloud-samples-data/speech/hello.wav';
   const realHeaders = { ...headers, 'Idempotency-Key': 'server-real-asr' };
   const realResponse = await fetch(url + '/v1/jobs/url', { method: 'POST', headers: realHeaders, body: JSON.stringify({ url: realUrl }) });
   assert.equal(realResponse.status, 202);

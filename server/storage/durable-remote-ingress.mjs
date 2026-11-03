@@ -10,16 +10,16 @@ const MAX_ALLOWED_BYTES = 2048 * 1024 * 1024;
 export function createDurableRemoteIngress({ ingress, allowedHosts = [], maxBytes = 256 * 1024 * 1024,
   downloadTimeoutMs = 120000, validate = validateRemoteSource, download = downloadPinnedHttps } = {}) {
   if (typeof ingress?.createUpload !== "function") throw new Error("DURABLE_INGRESS_REQUIRED");
-  if (!Array.isArray(allowedHosts) || allowedHosts.some(host => typeof host !== "string")) throw new Error("INVALID_ALLOWED_HOSTS");
+  if (allowedHosts !== null && (!Array.isArray(allowedHosts) || allowedHosts.some(host => typeof host !== "string"))) throw new Error("INVALID_ALLOWED_HOSTS");
   if (!Number.isSafeInteger(maxBytes) || maxBytes < 1 || maxBytes > MAX_ALLOWED_BYTES) throw new Error("INVALID_MAX_BYTES");
   if (!Number.isSafeInteger(downloadTimeoutMs) || downloadTimeoutMs < 1000 || downloadTimeoutMs > 300000) throw new Error("INVALID_DOWNLOAD_TIMEOUT");
   if (typeof validate !== "function" || typeof download !== "function") throw new Error("INVALID_REMOTE_DEPENDENCY");
-  const hosts = [...new Set(allowedHosts.map(host => host.trim().toLowerCase()).filter(Boolean))];
+  const hosts = allowedHosts === null ? null : [...new Set(allowedHosts.map(host => host.trim().toLowerCase()).filter(Boolean))];
 
   async function createRemote(rawUrl) {
-    if (!hosts.length) throw new JobError("REMOTE_URL_DISABLED", 503);
+    if (hosts !== null && !hosts.length) throw new JobError("REMOTE_URL_DISABLED", 503);
     const verified = await validate(rawUrl, hosts);
-    if (!(verified instanceof URL) || verified.protocol !== "https:" || !hosts.includes(verified.hostname.toLowerCase())) {
+    if (!(verified instanceof URL) || verified.protocol !== "https:" || (hosts !== null && !hosts.includes(verified.hostname.toLowerCase()))) {
       throw new JobError("INVALID_SOURCE_URL", 400);
     }
     const directory = await mkdtemp(join(tmpdir(), "toolnet-srt-remote-"));

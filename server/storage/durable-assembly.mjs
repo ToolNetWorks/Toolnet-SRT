@@ -95,8 +95,9 @@ export function createDurableAssembly({ factories = {}, onTiming = null } = {}) 
       const neededBytes = maxBytes + (config.chunkCheckpointsEnabled ? (asrSemaphore ? config.asrGlobalConcurrency : 1) * ((config.chunkSeconds ?? 600) * 32000 + 65536) : 0);
       if (diskQuota && config.fetchDiskQuotaBytes < neededBytes) throw new Error('DISK_QUOTA_BELOW_WORKER_RESERVATION');
       const ingress = dependencies.ingress({ jobStore, storage, maxBytes, diskQuota });
-      const allowedHosts = [...new Set((env.TOOLNET_SRT_ALLOWED_MEDIA_HOSTS || "")
-        .split(",").map(host => host.trim().toLowerCase()).filter(Boolean))];
+      // Durable fetch validates and pins every resolved public IP at dial time.
+      // Keep legacy v0.2 allowlist behavior separate from Durable mode.
+      const allowedHosts = null;
       const remoteIngress = dependencies.remoteIngress({ ingress, allowedHosts, maxBytes });
       const vault = config.fetchConcurrency !== undefined ? dependencies.vault({ key: env.TOOLNET_SRT_REMOTE_URL_ENCRYPTION_KEY }) : null;
       const remoteQueue = vault ? dependencies.remoteQueue({ pool, vault, allowedHosts, idempotencySecret: env.TOOLNET_SRT_REMOTE_IDEMPOTENCY_KEY }) : null;

@@ -65,7 +65,7 @@ test("Assembly injects remote ingress and allowlist", async () => {
       leaseSeconds: 120, heartbeatIntervalMs: 20000, maxAttempts: 3 },
   });
   try {
-    assert.deepEqual(remoteOptions.allowedHosts, ["media.example", "cdn.example"]);
+    assert.equal(remoteOptions.allowedHosts, null);
     assert.equal(remoteOptions.ingress, fakeIngress);
     assert.equal(managerOptions.remoteIngress, fakeRemote);
     assert.equal(managerOptions.ingress, fakeIngress);

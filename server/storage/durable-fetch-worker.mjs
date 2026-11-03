@@ -16,7 +16,7 @@ export function createDurableFetchWorker({ leases, vault, storage, workerId, all
   if (typeof vault?.decrypt !== 'function') throw new Error('REMOTE_URL_VAULT_REQUIRED');
   if (typeof storage?.uploadRemoteSource !== 'function' || typeof storage?.getRemoteSourceInfo !== 'function') throw new Error('REMOTE_STORAGE_REQUIRED');
   if (typeof workerId !== 'string' || !/^[a-zA-Z0-9_.:-]{1,128}$/.test(workerId)) throw new Error('INVALID_WORKER_ID');
-  if (!Array.isArray(allowedHosts) || allowedHosts.some(x => typeof x !== 'string')) throw new Error('INVALID_ALLOWED_HOSTS');
+  if (allowedHosts !== null && (!Array.isArray(allowedHosts) || allowedHosts.some(x => typeof x !== 'string'))) throw new Error('INVALID_ALLOWED_HOSTS');
   for (const [value, min, max, name] of [[maxBytes, 1, 2147483648, 'MAX_BYTES'], [downloadTimeoutMs, 1000, 300000, 'DOWNLOAD_TIMEOUT'], [heartbeatIntervalMs, 10, 300000, 'HEARTBEAT']]) {
     if (!Number.isSafeInteger(value) || value < min || value > max) throw new Error(`INVALID_${name}`);
   }

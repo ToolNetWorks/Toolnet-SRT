@@ -29,7 +29,7 @@ export const OPENAPI = {
       requestBody: { required: true, content: { 'video/mp4': { schema: { type: 'string', format: 'binary' } }, 'audio/mpeg': { schema: { type: 'string', format: 'binary' } } } },
       responses: { '202': { description: 'Queued', content: { 'application/json': { schema: { $ref: '#/components/schemas/Job' } } } } },
     } },
-    '/v1/jobs/url': { post: { summary: 'Create job from allowlisted HTTPS media URL', security: secured,
+    '/v1/jobs/url': { post: { summary: 'Create job from HTTPS media URL', security: secured,
       parameters: [{ name: 'Idempotency-Key', in: 'header', required: false, description: 'Required in durable mode; use the same key when retrying the same URL.', schema: { type: 'string', minLength: 1, maxLength: 255 } }],
       requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { url: { type: 'string', format: 'uri' } }, required: ['url'] } } } },
       responses: { '202': { description: 'Queued', content: { 'application/json': { schema: { $ref: '#/components/schemas/Job' } } } } },
@@ -55,7 +55,7 @@ export const DOCS_HTML = `<!doctype html>
 <h2>Endpoints</h2><table><tr><th>Method</th><th>Path</th><th>Mục đích</th></tr>
 <tr><td>POST</td><td><code>/v1/transcribe</code></td><td>Đồng bộ, cho file nhỏ (giữ tương thích)</td></tr>
 <tr><td>POST</td><td><code>/v1/jobs</code></td><td>Upload file binary và tạo job</td></tr>
-<tr><td>POST</td><td><code>/v1/jobs/url</code></td><td>Nhận URL HTTPS đã allowlist</td></tr>
+<tr><td>POST</td><td><code>/v1/jobs/url</code></td><td>Nhận URL HTTPS công khai</td></tr>
 <tr><td>GET</td><td><code>/v1/jobs/{id}</code></td><td>Trạng thái, tiến độ, số đoạn</td></tr>
 <tr><td>GET</td><td><code>/v1/jobs/{id}/result</code></td><td>Tải SRT khi completed</td></tr>
 <tr><td>DELETE</td><td><code>/v1/jobs/{id}</code></td><td>Hủy job</td></tr>
@@ -74,6 +74,6 @@ export const DOCS_HTML = `<!doctype html>
   -H 'X-API-Key: YOUR_API_KEY' -H 'Content-Type: application/json' \\
   -H 'Idempotency-Key: YOUR_STABLE_REQUEST_ID' \\
   -d '{"url":"https://media.example.com/video.mp4"}'</pre>
-<p>Chỉ host được liệt kê trong <code>TOOLNET_SRT_ALLOWED_MEDIA_HOSTS</code> mới được chấp nhận. Không cho phép redirect. Durable mode yêu cầu key ổn định cho mỗi yêu cầu và dùng lại key khi retry.</p>
+<p>Durable mode chấp nhận hostname HTTPS công khai, kiểm tra DNS và khóa kết nối vào IP đã xác thực. Không cho phép redirect hoặc địa chỉ nội bộ. Chế độ cũ vẫn yêu cầu allowlist. Durable mode yêu cầu key ổn định cho mỗi yêu cầu và dùng lại key khi retry.</p>
 <h2>5. SDK và MCP</h2><p>SDK: <code>sdk/client.mjs</code>; MCP stdio: <code>node mcp/stdio.mjs</code>; MCP qua HTTP: <code>POST /mcp</code> (đặt <code>X-API-Key</code> ở cấu hình MCP client).</p>
 <hr><p><small>Chế độ mặc định lưu job trên filesystem cục bộ. Durable mode sử dụng Neon và R2 khi đã được cấu hình và khởi động thành công. API key dùng chung cấp quyền cho toàn bộ job của một tenant.</small></p></body></html>`;

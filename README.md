@@ -143,7 +143,8 @@ Copyright (C) 2026 xifan2333. ToolNetWorks retains copyright in its own original
 Durable mode is disabled by default. It requires Neon migrations 002–005,
 Cloudflare R2, `DURABLE_JOBS_ENABLED=true`, a stable 32-byte base64url
 `TOOLNET_SRT_REMOTE_URL_ENCRYPTION_KEY`, a different stable 32-byte base64url
-`TOOLNET_SRT_REMOTE_IDEMPOTENCY_KEY`, and `TOOLNET_SRT_ALLOWED_MEDIA_HOSTS`.
+`TOOLNET_SRT_REMOTE_IDEMPOTENCY_KEY`. Durable mode accepts HTTPS URLs from
+public hosts and validates every DNS answer before pinning the connection.
 Generate secrets securely and preserve them across restarts; rotating them while
 jobs or idempotency records exist changes behavior. Apply migrations only to the
 intended database after reviewing the deployment plan.
@@ -168,7 +169,7 @@ For a separate continuously running worker, set `DURABLE_JOBS_ENABLED=true` and
 `DURABLE_RUN_WORKERS=false` on the HTTP service. Run
 `node server/durable-worker-service.mjs` under a process supervisor on the worker
 host, with `DURABLE_JOBS_ENABLED=true` and the same database, bucket, remote URL
-encryption key, idempotency key and allowed hosts as the HTTP service. The worker
+encryption key and idempotency key as the HTTP service. The worker
 does not expose HTTP and drains its schedulers on shutdown. Keep one worker
 process with the default ASR concurrency of one. This arrangement requires a
 tested staging deployment; Render Free can stop the HTTP service while idle and
